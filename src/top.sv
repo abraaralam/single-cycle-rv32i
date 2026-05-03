@@ -2,7 +2,10 @@
 
 module top(
     input logic clk,
-    input logic reset
+    input logic reset,
+    output [31:0] pc_out,
+    output [31:0] alu_result_out,
+    output [31:0] instruction_out
     );
     // SIGNALS
     // program counter signals
@@ -19,9 +22,8 @@ module top(
     logic [31:0] SrcB;
     
     // Main control
-    logic Branch, MemWrite, ALUSrc, RegWrite;
-    logic ResultSrc;
-    logic [1:0] ImmSrc, ALUOp;
+    logic Branch, Jump, MemWrite, ALUSrc, RegWrite;
+    logic [1:0] ImmSrc, ALUOp, ResultSrc;
     
     // ALU
     logic zero;
@@ -55,7 +57,8 @@ module top(
     .ALUSrc(ALUSrc),
     .ImmSrc(ImmSrc),
     .RegWrite(RegWrite),
-    .ALUOp(ALUOp)
+    .ALUOp(ALUOp),
+    .Jump(Jump)
     );
     
     // Register File
@@ -109,15 +112,26 @@ module top(
         .wd(RD2),
         .rd(ReadData)
     );
+   
     
-    assign WD3 = ResultSrc ? ReadData : ALUResult;
+    always_comb begin
+        case(ResultSrc) 
+            2'b00:   WD3 = ALUResult; 
+            2'b01:   WD3 = ReadData;  
+            2'b10:   WD3 = PCPlus4; // JAL
+            default: WD3 = 32'b0;
+        endcase
+    end
     
     assign PCPlus4 = PC + 4;
     assign PCTarget = PC + ImmExt;
 
-    assign PCSrc = Branch & zero;
+    assign PCSrc = (Branch & zero) | Jump;
 
     assign PCNext = PCSrc ? PCTarget : PCPlus4;
-    
+
+    assign pc_out          = PC;           
+    assign alu_result_out  = ALUResult;    
+    assign instruction_out = instr;        
     
 endmodule
